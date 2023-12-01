@@ -1,13 +1,10 @@
-For every fuzzy set in every variable, I need the slopes, y-intercepts and ranges of two or three straight lines
+- Limitations
+  - Only two variables allowed on LHS of rule
+  - No intermediate output
 
-{
-  "var_name": {
-    "set name": [first, second, third],
-    "another set name": [first, second, third, false]
-  }
-}
-y = mx + b
-{
+- Structs: line, range
+
+variables = {
   "var_name": {
     "triangular_set": [
       {
@@ -41,9 +38,39 @@ y = mx + b
   }
 }
 
-- add_variable(map)
+fuzzy_values = {
+  "var_name": {
+    "triangular_set": 0.8,
+    "trapezoidal_set": 0.3
+  }
+}
+
+- calculate_fuzzy_values_for_variable(variables, fuzzy_values)
+  - variable_names = []
+  - i = 1
+  - for variable_name in variables
+    - if variable_name in fuzzy_values
+      - continue
+    - variable_names.append(variable_name)
+    - print("{i}. {variable_name}")
+    - i++
+  - number = input() - 1
+  - variable_name = variable_names[number]
+  - fuzzy_values.set(variable_name, {})
+  - sets = variables[variable_name]
+  - for set_name in sets:
+    - lines = sets[set_name]
+    - range = [lines[0].range.begin, lines[lines.size() - 1].range.end]
+    - value = input("for {set_name}") in range
+    - for line in lines
+      - if value >= line.range.begin && value <= line.range.end
+        - fuzzy_value = line.slope * value + line.y_intercept
+        - fuzzy_values[variable_name].set(set_name, fuzzy_value)
+        - break
+
+- add_variable(variables)
   - var_name = input()
-  - map.set(var_name, {});
+  - variables.set(var_name, {});
   - no_sets = input()
   - for 1..=no_sets
     - set_name = input()
@@ -63,7 +90,7 @@ y = mx + b
           slope,
           y_intercept: ys[j] - slope * xs[j]
         })
-    - map['var_name'].set('set_name', lines)
+    - variables['var_name'].set('set_name', lines)
 
 - For each variable
   - For each fuzzy set
