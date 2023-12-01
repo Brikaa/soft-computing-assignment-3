@@ -1,0 +1,72 @@
+For every fuzzy set in every variable, I need the slopes, y-intercepts and ranges of two or three straight lines
+
+{
+  "var_name": {
+    "set name": [first, second, third],
+    "another set name": [first, second, third, false]
+  }
+}
+y = mx + b
+{
+  "var_name": {
+    "triangular_set": [
+      {
+        slope: 1/(second - first),
+        y_intercept: -slope * first,
+        range: [first, second]
+      },
+      {
+        slope: -1/(third-second),
+        y_intercept: -slope * third,
+        range: [second, third]
+      }
+    ],
+    "trapezoidal_set": [
+      {
+        slope: 1/(second - first),
+        y_intercept: -slope * first,
+        range: [first, second]
+      },
+      {
+        slope: 0,
+        y_intercept: 1,
+        range: [second, third]
+      },
+      {
+        slope: 1/(fourth - third),
+        y_intercept: -slope * fourth,
+        range: [third, fourth]
+      }
+    ]
+  }
+}
+
+- add_variable(map)
+  - var_name = input()
+  - map.set(var_name, {});
+  - no_sets = input()
+  - for 1..=no_sets
+    - set_name = input()
+    - set_type = input()
+    - no_points = set_type == 'trapezoid' ? 4 : 3
+    - xs = []
+    - for j=1..=no_points
+      - xs.append(input())
+    - lines = []
+    - ys = [0]
+    - for i=2..no_points
+      - ys.append(1)
+    - ys.append(0)
+    - for j=1..no_points
+      - slope = (ys[j] - ys[j - 1])/(xs[j] - xs[j - 1])
+      - lines.append(new Line{
+          slope,
+          y_intercept: ys[j] - slope * xs[j]
+        })
+    - map['var_name'].set('set_name', lines)
+
+- For each variable
+  - For each fuzzy set
+    - Determine the degree of membership (fuzzy values of input sets)
+- Do rule inference using these degree of memberships (fuzzy values of output sets)
+- Do defuzzification using inference results (crisp value of output)
