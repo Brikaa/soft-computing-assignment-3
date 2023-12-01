@@ -1,48 +1,52 @@
 - Limitations
-  - Only two variables allowed on LHS of rule
+  - Two and only two variables are allowed on LHS of rule
+  - Rule RHS can only have one variable
   - No intermediate output
 
-- Structs: line, range
+- Structs: line, range, rule, assignment
+
+Range = {
+  begin: float,
+  end: float
+}
+
+Line = {
+  slope: float,
+  y_intercept: float,
+  range: Range
+}
+
+Assignment = {
+  not: bool,
+  var: string
+  set: string
+}
+
+Rule = {
+  lhs: {
+    assignment_a: Assignment,
+    operator: 'AND' | 'OR',
+    assignment_b: Assignment
+  },
+  rhs: {
+    assignment: Assignment
+  }
+}
 
 variables = {
   "var_name": {
-    "triangular_set": [
-      {
-        slope: 1/(second - first),
-        y_intercept: -slope * first,
-        range: [first, second]
-      },
-      {
-        slope: -1/(third-second),
-        y_intercept: -slope * third,
-        range: [second, third]
-      }
-    ],
-    "trapezoidal_set": [
-      {
-        slope: 1/(second - first),
-        y_intercept: -slope * first,
-        range: [first, second]
-      },
-      {
-        slope: 0,
-        y_intercept: 1,
-        range: [second, third]
-      },
-      {
-        slope: 1/(fourth - third),
-        y_intercept: -slope * fourth,
-        range: [third, fourth]
-      }
-    ]
-  }
+    "set_name": Line[],
+    ...
+  },
+  ...
 }
 
 fuzzy_values = {
   "var_name": {
-    "triangular_set": 0.8,
-    "trapezoidal_set": 0.3
-  }
+    "set_name": float from 0 to 1,
+    ...
+  },
+  ...
 }
 
 - calculate_fuzzy_values_for_variable(variables, fuzzy_values)
@@ -88,7 +92,8 @@ fuzzy_values = {
       - slope = (ys[j] - ys[j - 1])/(xs[j] - xs[j - 1])
       - lines.append(new Line{
           slope,
-          y_intercept: ys[j] - slope * xs[j]
+          y_intercept: ys[j] - slope * xs[j],
+          range: [xs[j - 1], xs[j]]
         })
     - variables['var_name'].set('set_name', lines)
 
