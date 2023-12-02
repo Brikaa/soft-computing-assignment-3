@@ -137,6 +137,13 @@ fn add_rule(input_variables: &VariableMap, output_variables: &VariableMap, rules
     rules.push(Rule { lhs, rhs });
 }
 
+fn compute_y(line: &Line, value: f64) -> f64 {
+    if line.slope == INFINITY {
+        return 1.0;
+    }
+    return line.slope * value + line.y_intercept;
+}
+
 fn calculate_fuzzy_value_for_variable(
     variables: &VariableMap,
     variable_name: &String,
@@ -146,10 +153,7 @@ fn calculate_fuzzy_value_for_variable(
     let lines = variables.get(variable_name).unwrap().get(set_name).unwrap();
     for line in lines {
         if crisp_value >= line.x_range.begin && crisp_value <= line.x_range.end {
-            if line.slope == INFINITY {
-                return 1.0;
-            }
-            return line.slope * crisp_value + line.y_intercept;
+            return compute_y(&line, crisp_value);
         }
     }
     return 0.0;
@@ -284,17 +288,16 @@ fn calculate_crisp_output(
         }
         let crisp_value = numerator / denominator;
         let mut set_name = "Invalid set";
+        let mut max_y = -1_f64;
         for (s, lines) in output_variables.get(var_name).unwrap() {
-            let mut found = false;
             for line in lines {
                 if crisp_value >= line.x_range.begin && crisp_value <= line.x_range.end {
-                    set_name = s;
-                    found = true;
-                    break;
+                    let prev_max_y = max_y;
+                    max_y = f64::max(max_y, compute_y(&line, crisp_value));
+                    if max_y != prev_max_y {
+                        set_name = s;
+                    }
                 }
-            }
-            if found {
-                break;
             }
         }
         println!("{}: {} ({})", var_name, crisp_value, set_name);

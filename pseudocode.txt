@@ -87,13 +87,16 @@ fuzzy_values = {
   - rhs_assignment = assignment{ rule_nots[2], rule_variables[2], rule_sets[2] }
   - rules.push(Rule{LHS, rhs_assignment})
 
+- compute_y(line, value)
+  - if line.slope == inf
+    - return 1
+  - return line.slope * value + line.y_intercept
+
 - calculate_fuzzy_value_for_variable(variables, variable_name, set_name, crisp_value)
   - lines = variables[variable_name][set_name]
   - for line in lines
     - if crisp_value >= line.range_x.begin && crisp_value <= line.range_x.end
-      - if line.slope == inf
-        - return 1
-      - return line.slope * crisp_value + line.y_intercept
+      - return compute_y(line, crisp_value)
   - return 0
 
 - add_variable(variables)
@@ -163,14 +166,14 @@ fuzzy_values = {
     - crisp_value = numerator / denominator
     # Check which set it lies in
     - set_name = "invalid set"
+    - max_y = -1
     - for (s, lines) in output_variables[var_name]
-      - found = false
       - for line in lines
         - if crisp_value >= line.range_x.begin && crisp_value <= line.range_x.end
-          - set_name = s
-          - found = true
-          - break
-      - if (found) break
+          - prev_max_y = max_y
+          - max_y = max(max_y, compute_y(line, crisp_value))
+          - if max_y != prev_max_y
+            - set_name = s
     - print("{var_name}: {crisp_value} (set_name)")
 
 - main()
