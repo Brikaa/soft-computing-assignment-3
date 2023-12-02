@@ -28,9 +28,7 @@ Rule = {
     operator: 'AND' | 'OR',
     assignment_b: Assignment
   },
-  rhs: {
-    assignment: Assignment
-  }
+  rhs: Assignment
 }
 
 variables = {
@@ -49,17 +47,52 @@ fuzzy_values = {
   ...
 }
 
-- calculate_fuzzy_values_for_variable(variables, fuzzy_values)
-  - variable_names = []
+- choose_name_from_map(map, exclude_fn)
   - i = 1
-  - for variable_name in variables
-    - if variable_name in fuzzy_values
+  - variable_names = []
+  - for name in map
+    - if exclude_fn(name)
       - continue
-    - variable_names.append(variable_name)
-    - print("{i}. {variable_name}")
+    - variable_names.append(name)
+    - print("{i}. {name}")
     - i++
   - number = input() - 1
-  - variable_name = variable_names[number]
+  - return variable_names[number]
+
+- add_rule(variables, rules)
+  - rhs_variables = set[]
+  - lhs_variables = set[]
+  - for rule in rules
+    - rhs_variables.insert(rule.rhs.var)
+    - lhs_variables.insert(rule.lhs.assignment_a.var)
+    - lhs_variables.insert(rule.lhs.assignment_b.var)
+  - rule_variables = []
+  - rule_nots = []
+  - rule_sets = []
+  - operator = ""
+  - for i:1..=3
+    - exclusion = i == 3 ? lhs_variables : rhs_variables
+    - var_name = choose_name_from_map(variables, (name) => name in exclusion)
+    - rule_variables.append(var_name)
+    - print("1. is\n2. is not")
+    - not_choice = input in range 1, 2
+    - rule_nots.push(not_choice == 2)
+    - set_name = choose_name_from_map(variables[var_name], (_) => false)
+    - rule_sets.push(set_name)
+    - if i == 1:
+      - print("1. and\n2. or")
+      - operator_choice = input() in range 1, 2
+      - operator = operator_choice == 1 ? AND : OR
+    - if i == 2:
+      - print("=>")
+  - assignment_a = assignment{ rule_nots[0], rule_variables[0], rule_sets[0] }
+  - assignment_b = assignment{ rule_nots[1], rule_variables[1], rule_sets[1] }
+  - lhs = LHS{assignment_a, operator, assignment_b}
+  - rhs_assignment = assignment{ rule_nots[2], rule_variables[2], rule_sets[2] }
+  - rules.push(Rule{LHS, rhs_assignment})
+
+- calculate_fuzzy_values_for_variable(variables, fuzzy_values)
+  - variable_name = choose_name_from_map(variables, (name) => name in fuzzy_values)
   - fuzzy_values.set(variable_name, {})
   - sets = variables[variable_name]
   - for set_name in sets:
