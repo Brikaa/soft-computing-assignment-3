@@ -49,12 +49,10 @@ fuzzy_values = {
   ...
 }
 
-- choose_name_from_map(map, exclude_fn)
+- choose_name_from_map(map)
   - i = 1
   - variable_names = []
   - for name in map
-    - if exclude_fn(name)
-      - continue
     - variable_names.append(name)
     - print("{i}. {name}")
     - i++
@@ -70,12 +68,12 @@ fuzzy_values = {
   - operator = ""
   - for i:1..=3
     - var_pool = i == 3 ? output_variables : input_variables
-    - var_name = choose_name_from_map(var_pool, (_) => false)
+    - var_name = choose_name_from_map(var_pool)
     - rule_variables.append(var_name)
     - print("1. is\n2. is not")
     - not_choice = input in range 1, 2
     - rule_nots.push(not_choice == 2)
-    - set_name = choose_name_from_map(var_pool[var_name], (_) => false)
+    - set_name = choose_name_from_map(var_pool[var_name])
     - rule_sets.push(set_name)
     - if i == 1:
       - print("1. and\n2. or")
@@ -141,17 +139,17 @@ fuzzy_values = {
     - b_fuzzy = calculate_fuzzy_value_for_variable(input_variables, var_b, rule.lhs.assignment_b.set, b_crisp)
     - if (rule.lhs.assignment_a.not) a_fuzzy = 1 - a_fuzzy
     - if (rule.lhs.assignment_b.not) b_fuzzy = 1 - b_fuzzy
-    - fn = operator == "AND" ? min : max
+    - fn = rule.lhs.operator == "AND" ? min : max
     - c_fuzzy = fn(a_fuzzy, b_fuzzy)
     - if (rule.rhs.not) c_fuzzy = 1 - c_fuzzy
     - if (!output_fuzzy_values.has(rule.rhs.var))
       - output_fuzzy_values.set(rule.rhs.var, {})
     - output_fuzzy_values[rule.rhs.var].set(rule.rhs.set, c_fuzzy)
   # for each variable in output fuzzy values, calculate the output crisp value and check which set it lies in
-  - for (var_name, set) in output_fuzzy_values (beware of multimap)
+  - for (var_name, set) in output_fuzzy_values
     - numerator = 0
     - denominator = 0
-    - for (set_name, fuzzy_value) in set
+    - for (set_name, fuzzy_value) in set (beware of multimap)
       # numerator += centroid * fuzzy_value
       # denominator += value
       - centroid = 0

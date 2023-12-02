@@ -1,4 +1,6 @@
 use std::{collections::HashMap, f64::INFINITY, fmt, str::FromStr};
+
+use multimap::MultiMap;
 #[macro_use]
 extern crate scan_fmt;
 
@@ -65,16 +67,10 @@ where
     }
 }
 
-fn choose_name_from_map<T>(
-    map: &HashMap<String, T>,
-    exclude_fn: impl Fn(&String) -> bool,
-) -> String {
+fn choose_name_from_map<T>(map: &HashMap<String, T>) -> String {
     let mut i = 1_u32;
     let mut variable_names = Vec::new();
     for (variable_name, _) in map {
-        if exclude_fn(variable_name) {
-            continue;
-        }
         variable_names.push(variable_name);
         println!("{}. {}", i, variable_name);
         i += 1;
@@ -98,12 +94,12 @@ fn add_rule(input_variables: &VariableMap, output_variables: &VariableMap, rules
         } else {
             &input_variables
         };
-        let var_name = choose_name_from_map(var_pool, |_| false);
+        let var_name = choose_name_from_map(var_pool);
         rule_variables.push(var_name);
         println!("1. Is\n2. Is not");
         let not_choice = input_in_range(1_u32, 2_u32);
         rule_nots.push(not_choice == 2);
-        let set_name = choose_name_from_map(var_pool, |_| false);
+        let set_name = choose_name_from_map(var_pool);
         rule_sets.push(set_name);
         if i == 1 {
             println!("1. And\n2. Or");
@@ -201,6 +197,128 @@ fn add_variable(variables: &mut VariableMap) {
     }
 }
 
+fn calculate_crisp_output(
+    input_variables: &VariableMap,
+    output_variables: &VariableMap,
+    rules: &Vec<Rule>,
+) {
+    if rules.len() == 0 {
+        println!("Need at least one rule to calculate crisp outputs");
+        return;
+    }
+    let mut input_crisp_values: HashMap<String, f64> = HashMap::new();
+    let mut output_fuzzy_values = HashMap::new();
+    for rule in rules {
+        let var_a = &rule.lhs.assignment_a.var;
+        let var_b = &rule.lhs.assignment_b.var;
+        let a_crisp = if input_crisp_values.contains_key(var_a) {
+            input_crisp_values.get(var_a).unwrap().clone()
+        } else {
+            println!("{} crisp value", var_a);
+            get_input()
+        };
+        input_crisp_values.insert(var_a.clone(), a_crisp);
+
+        let b_crisp = if input_crisp_values.contains_key(var_b) {
+            input_crisp_values.get(var_b).unwrap().clone()
+        } else {
+            println!("{} crisp value", var_b);
+            get_input()
+        };
+        input_crisp_values.insert(var_b.clone(), b_crisp);
+
+        let mut a_fuzzy = calculate_fuzzy_value_for_variable(
+            input_variables,
+            var_a,
+            &rule.lhs.assignment_a.set,
+            a_crisp,
+        );
+        let mut b_fuzzy = calculate_fuzzy_value_for_variable(
+            input_variables,
+            var_b,
+            &rule.lhs.assignment_b.set,
+            b_crisp,
+        );
+        if rule.lhs.assignment_a.not {
+            a_fuzzy = 1.0 - a_fuzzy;
+        }
+        if rule.lhs.assignment_b.not {
+            b_fuzzy = 1.0 - b_fuzzy;
+        }
+        let function = if matches!(rule.lhs.operator, Operator::AND) {
+            f64::min
+        } else {
+            f64::max
+        };
+        let mut c_fuzzy = function(a_fuzzy, b_fuzzy);
+        if rule.rhs.not {
+            c_fuzzy = 1.0 - c_fuzzy;
+        }
+        if !output_fuzzy_values.contains_key(&rule.rhs.var) {
+            output_fuzzy_values.insert(rule.rhs.var.clone(), MultiMap::new());
+        }
+        output_fuzzy_values
+            .get_mut(&rule.rhs.var)
+            .unwrap()
+            .insert(rule.rhs.set.clone(), c_fuzzy);
+    }
+    for (var_name, set) in &output_fuzzy_values {
+        let mut numerator = 0_f64;
+        let mut denominator = 0_f64;
+        for (set_name, fuzzy_values) in set.iter_all() {
+            let mut centroid = 0_f64;
+            let lines = output_variables
+                .get(var_name)
+                .unwrap()
+                .get(set_name)
+                .unwrap();
+            for line in lines {
+                centroid += line.x_range.begin;
+            }
+            centroid += lines.last().unwrap().x_range.end;
+            centroid /= (lines.len() + 1) as f64;
+            for fuzzy_value in fuzzy_values {
+                numerator += centroid * fuzzy_value;
+                denominator += fuzzy_value;
+            }
+        }
+        let crisp_value = numerator / denominator;
+        let mut set_name = "Invalid set";
+        for (s, lines) in output_variables.get(var_name).unwrap() {
+            let mut found = false;
+            for line in lines {
+                if crisp_value >= line.x_range.begin && crisp_value <= line.x_range.end {
+                    set_name = s;
+                    found = true;
+                    break;
+                }
+            }
+            if found {
+                break;
+            }
+        }
+        println!("{}: {} ({})", var_name, crisp_value, set_name);
+    }
+}
+
 fn main() {
-    println!("Hello, world!");
+    let mut input_variables = HashMap::new();
+    let mut output_variables = HashMap::new();
+    let mut rules = Vec::new();
+    loop {
+        println!(
+            "1. Add input variable
+2. Add output variable
+3. Add rule
+4. Calculate crisp values for output variables"
+        );
+        let choice = input_in_range(1_u32, 4);
+        match choice {
+            1 => add_variable(&mut input_variables),
+            2 => add_variable(&mut output_variables),
+            3 => add_rule(&input_variables, &output_variables, &mut rules),
+            4 => calculate_crisp_output(&input_variables, &output_variables, &rules),
+            _ => println!("Invalid choice"),
+        }
+    }
 }
