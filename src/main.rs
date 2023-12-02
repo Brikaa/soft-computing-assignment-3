@@ -95,11 +95,11 @@ fn add_rule(input_variables: &VariableMap, output_variables: &VariableMap, rules
             &input_variables
         };
         let var_name = choose_name_from_map(var_pool);
-        rule_variables.push(var_name);
+        rule_variables.push(var_name.clone());
         println!("1. Is\n2. Is not");
         let not_choice = input_in_range(1_u32, 2_u32);
         rule_nots.push(not_choice == 2);
-        let set_name = choose_name_from_map(var_pool);
+        let set_name = choose_name_from_map(var_pool.get(&var_name).unwrap());
         rule_sets.push(set_name);
         if i == 1 {
             println!("1. And\n2. Or");
