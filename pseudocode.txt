@@ -175,3 +175,25 @@ fuzzy_values = {
           - break
       - if (found) break
     - print("{var_name}: {crisp_value} (set_name)")
+
+- main()
+  - input("system name")
+  - input("system description")
+  - input_variables = {}
+  - output_variables = {}
+  - rules = []
+  - while True
+    - print(
+      "
+        1. Add input variable
+        2. Add output variable
+        3. Add rule
+        4. Calculate crisp values for output values
+      "
+      )
+    - choice = input() in range 1 4
+    - switch input
+      - case 1: add_variable(input_variables)
+      - case 2: add_variable(output_variables)
+      - case 3: add_rule(input_variables, output_variable, rules)
+      - case 4: calculate_crisp_output(input_variables, output_variables, rules)
