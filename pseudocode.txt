@@ -91,7 +91,6 @@ fuzzy_values = {
 
 - calculate_fuzzy_value_for_variable(variables, variable_name, set_name, crisp_value)
   - lines = variables[variable_name][set_name]
-  - range = [lines[0].range.begin, lines[lines.size() - 1].range.end]
   - for line in lines
     - if crisp_value >= line.range_x.begin && crisp_value <= line.range_x.end
       - if line.slope == inf
