@@ -69,10 +69,13 @@ where
 }
 
 fn choose_name_from_map<T>(map: &HashMap<String, T>) -> String {
-    let mut i = 1_u32;
     let mut variable_names = Vec::new();
     for (variable_name, _) in map {
         variable_names.push(variable_name);
+    }
+    variable_names.sort();
+    let mut i = 1_u32;
+    for variable_name in &variable_names {
         println!("{}. {}", i, variable_name);
         i += 1;
     }
@@ -117,7 +120,7 @@ fn add_rule(input_variables: &VariableMap, output_variables: &VariableMap, rules
                     in_lhs = false;
                 }
             } else {
-                println!("1. More\n2. Done");
+                println!("1. ,\n2. Done");
                 let operator_choice = input_in_range(1_u32, 2_u32);
                 if operator_choice == 2 {
                     break;
@@ -271,7 +274,7 @@ fn calculate_crisp_output(
         }
         let result_token = &tokens_list[idx - 1];
         let fuzzy_result = get_value_from_token(result_token);
-        while idx != tokens_list.len() - 1 {
+        while idx != tokens_list.len() {
             match &tokens_list[idx] {
                 Token::Assignment(assignment) => {
                     let mut assignment_result = fuzzy_result;
@@ -286,8 +289,7 @@ fn calculate_crisp_output(
                             .insert(assignment.set.clone(), assignment_result);
                     }
                 }
-                Token::Operator(_) => todo!(),
-                Token::Value(_) => todo!(),
+                _ => {}
             }
             idx += 1;
         }
