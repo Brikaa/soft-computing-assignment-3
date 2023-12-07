@@ -1,4 +1,9 @@
-use std::{collections::HashMap, f64::INFINITY, fmt, str::FromStr};
+use std::{
+    collections::{HashMap, LinkedList},
+    f64::INFINITY,
+    fmt,
+    str::FromStr,
+};
 
 use multimap::MultiMap;
 #[macro_use]
@@ -21,15 +26,25 @@ struct Assignment {
     set: String,
 }
 
+#[derive(Clone)]
 enum Operator {
     AND,
     OR,
+    THEN,
 }
 struct LHS {
     assignment_a: Assignment,
     operator: Operator,
     assignment_b: Assignment,
 }
+
+enum Token {
+    Assignment(Assignment),
+    Operator(Operator),
+    Value(f64),
+}
+
+type Rule2 = Vec<Token>;
 
 struct Rule {
     lhs: LHS,
@@ -77,6 +92,59 @@ fn choose_name_from_map<T>(map: &HashMap<String, T>) -> String {
     }
     let number: u32 = input_in_range(1_u32, i - 1) - 1;
     variable_names[number as usize].to_owned()
+}
+
+fn add_rule2(
+    input_variables: &VariableMap,
+    output_variables: &VariableMap,
+    rules: &mut LinkedList<Rule2>,
+) {
+    if input_variables.len() == 0 || output_variables.len() == 0 {
+        println!("Insufficient input and/or output variables to create a rule");
+        return;
+    }
+    let mut rule: Rule2 = Vec::new();
+    let mut in_lhs = true;
+    let operators = vec![Operator::AND, Operator::OR, Operator::THEN];
+    let mut i = 1_u32;
+    loop {
+        let turn = i % 2;
+        if turn == 1 {
+            let var_pool = if in_lhs {
+                &input_variables
+            } else {
+                &output_variables
+            };
+            let var_name = choose_name_from_map(var_pool);
+            println!("1. Is\n2. Is not");
+            let not_choice = input_in_range(1_u32, 2_u32);
+            let not = not_choice == 2;
+            let set_name = choose_name_from_map(var_pool.get(&var_name).unwrap());
+            rule.push(Token::Assignment(Assignment {
+                not,
+                var: var_name,
+                set: set_name,
+            }));
+        } else if turn == 0 {
+            if in_lhs {
+                println!("1. And\n2. Or\n3. Then");
+                let operator_choice = input_in_range(1_usize, 3_usize);
+                let operator = &operators[operator_choice - 1];
+                rule.push(Token::Operator(operator.clone()));
+                if matches!(operator, Operator::THEN) {
+                    in_lhs = false;
+                }
+            } else {
+                println!("1. More\n2. Done");
+                let operator_choice = input_in_range(1_u32, 2_u32);
+                if operator_choice == 2 {
+                    break;
+                }
+            }
+        }
+        i += 1;
+    }
+    rules.push_back(rule);
 }
 
 fn add_rule(input_variables: &VariableMap, output_variables: &VariableMap, rules: &mut Vec<Rule>) {

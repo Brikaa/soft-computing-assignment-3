@@ -66,9 +66,9 @@ fuzzy_values = {
   - if input_variables.size() == 0 || output_variables.size() == 0
     - print insufficient input and/or output variables to create a rule
   - rule = []
-  - i = 1
   - in_lhs = true
   - operators = [and, or, then]
+  - i = 1
   - while true
     - turn = i % 2
     - if turn == 1
