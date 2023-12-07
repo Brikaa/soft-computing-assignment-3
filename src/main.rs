@@ -227,7 +227,7 @@ fn calculate_crisp_output(
         return;
     }
     let mut input_crisp_values: HashMap<String, f64> = HashMap::new();
-    let mut output_fuzzy_values: HashMap<String, MultiMap<String, f64>> = HashMap::new();
+    let mut output_fuzzy_values = HashMap::new();
     for rule in rules {
         let mut tokens_list = rule.clone();
         let mut idx = 0;
@@ -283,11 +283,11 @@ fn calculate_crisp_output(
                     }
                     if !output_fuzzy_values.contains_key(&assignment.var) {
                         output_fuzzy_values.insert(assignment.var.clone(), MultiMap::new());
-                        output_fuzzy_values
-                            .get_mut(&assignment.var)
-                            .unwrap()
-                            .insert(assignment.set.clone(), assignment_result);
                     }
+                    output_fuzzy_values
+                        .get_mut(&assignment.var)
+                        .unwrap()
+                        .insert(assignment.set.clone(), assignment_result);
                 }
                 _ => {}
             }
