@@ -1,6 +1,4 @@
 - Limitations
-  - Two and only two variables are allowed on LHS of rule
-  - Rule RHS can only have one variable
   - No intermediate output
 
 - Structs: line, range, rule, assignment
@@ -97,27 +95,6 @@ fuzzy_values = {
     - i++
   - rules.append(rule)
 
-  - for i:1..=3
-    - var_pool = i == 3 ? output_variables : input_variables
-    - var_name = choose_name_from_map(var_pool)
-    - rule_variables.append(var_name)
-    - print("1. is\n2. is not")
-    - not_choice = input in range 1, 2
-    - rule_nots.push(not_choice == 2)
-    - set_name = choose_name_from_map(var_pool[var_name])
-    - rule_sets.push(set_name)
-    - if i == 1:
-      - print("1. and\n2. or")
-      - operator_choice = input() in range 1, 2
-      - operator = operator_choice == 1 ? AND : OR
-    - if i == 2:
-      - print("=>")
-  - assignment_a = assignment{ rule_nots[0], rule_variables[0], rule_sets[0] }
-  - assignment_b = assignment{ rule_nots[1], rule_variables[1], rule_sets[1] }
-  - lhs = LHS{assignment_a, operator, assignment_b}
-  - rhs_assignment = assignment{ rule_nots[2], rule_variables[2], rule_sets[2] }
-  - rules.push(Rule{LHS, rhs_assignment})
-
 - compute_y(line, value)
   - if line.slope == inf
     - return 1
@@ -155,37 +132,67 @@ fuzzy_values = {
         })
     - variables['var_name'].set('set_name', lines)
 
+# for each rule
+  # change lhs assignments to fuzzy values
+  # change value1 and value2 to min(value1, value2)
+  # change value1 or value2 to max(value1, value2)
+  # only one fuzzy value will be left in lhs, call it fuzzy result
+  # for every assignment in rhs, output_fuzzy_values[set_name] = fuzzy result
+# for each var name in output fuzzy values
+  # for each set name in output_fuzzy_values[var_name], do the crisp value stuff
+
+- get_result_of_two_nodes(mid_node, fn)
+  - node++
+  - val1 = *node.val
+  - node -= 2
+  - val2 = *node.val
+  - res = fn(val1, val2)
+  - node.replace(Token::value(res))
+  - remove next two nodes
+
 - calculate_crisp_output(input_variables, output_variables, rules)
   - if rules.size() == 0
     - Need at least one rule to calculate crisp output
   - input_crisp_values = {}
-  - output_fuzzy_values = {} (multimap)
+  - output_fuzzy_values = {} (contains multimap)
   - for rule in rules
-    - var_a = rule.lhs.assignment_a.var
-    - var_b = rule.lhs.assignment_b.var
-    - a_crisp = input_crisp_values.has(var_a)
-      ? input_crisp_values[var_a]
-      : input('{var_a} crisp value')
-    - b_crisp = input_crisp_values.has(var_b)
-      ? input_crisp_values[var_b]
-      : input('{var_b} crisp value')
-    - a_fuzzy = calculate_fuzzy_value_for_variable(input_variables, var_a, rule.lhs.assignment_a.set, a_crisp)
-    - b_fuzzy = calculate_fuzzy_value_for_variable(input_variables, var_b, rule.lhs.assignment_b.set, b_crisp)
-    - if (rule.lhs.assignment_a.not) a_fuzzy = 1 - a_fuzzy
-    - if (rule.lhs.assignment_b.not) b_fuzzy = 1 - b_fuzzy
-    - fn = rule.lhs.operator == "AND" ? min : max
-    - c_fuzzy = fn(a_fuzzy, b_fuzzy)
-    - if (rule.rhs.not) c_fuzzy = 1 - c_fuzzy
-    - if (!output_fuzzy_values.has(rule.rhs.var))
-      - output_fuzzy_values.set(rule.rhs.var, {})
-    - output_fuzzy_values[rule.rhs.var].set(rule.rhs.set, c_fuzzy)
-  # for each variable in output fuzzy values, calculate the output crisp value and check which set it lies in
+    - tokens_list = rule.clone()
+    - node = tokens_list.begin
+    - while (*node != Token::Operator.THEN)
+      - if (*node).val matches Token::Assignment
+        - assignment = (*node).val
+        - crisp = input_crisp_values.has(var_a)
+          ? input_crisp_values[var_a]
+          : input('{var_a} crisp value')
+        - fuzzy = calculate_fuzzy_value_for_variable(input_variables, assignment.var, assignment.set, crisp)
+        - if (assignment.not) fuzzy = 1 - fuzzy
+        - node--
+        - node.replace(Token::value(fuzzy))
+        - remove next two nodes
+      - node++
+    - node = tokens_list.begin
+    - while (*node does not match Token::Operator.THEN)
+      - if (*node).val matches Token::Operator.AND
+        - get_result_of_two_nodes(node, min)
+      - node++
+    - node = tokens_list.begin
+    - while (*node does not match Token::Operator.THEN)
+      - if (*node).val matches Token::Operator.OR
+        - get_result_of_two_nodes(node, max)
+      - node++
+    - while (node != tokens_list.end)
+      - if (*node matches Token::Assignment)
+        - assignment = (*node).val
+        - assignment_result = fuzzy_result
+        - if (assignment.not) assignment_result = 1 - assignment_result
+        - if (!output_fuzzy_values.has(assignment.var))
+          - output_fuzzy_values.set(assignment.var, {})
+        - output_fuzzy_values[assignment.var].set(assignment.set, assignment_result)
+      - node++
   - for (var_name, set) in output_fuzzy_values
     - numerator = 0
     - denominator = 0
     - for (set_name, fuzzy_value) in set (beware of multimap)
-      # numerator += centroid * fuzzy_value
-      # denominator += value
       - centroid = 0
       - lines = output_variables[var_name][set_name]
       - for line in lines
