@@ -161,14 +161,13 @@ fuzzy_values = {
     - while (*node != Token::Operator.THEN)
       - if (*node).val matches Token::Assignment
         - assignment = (*node).val
-        - crisp = input_crisp_values.has(var_a)
-          ? input_crisp_values[var_a]
-          : input('{var_a} crisp value')
+        - crisp = input_crisp_values.has(assignment.var)
+          ? input_crisp_values[assignment.var]
+          : input('{assignment.var} crisp value')
+        - input_crisp_values[assignment.var] = crisp
         - fuzzy = calculate_fuzzy_value_for_variable(input_variables, assignment.var, assignment.set, crisp)
         - if (assignment.not) fuzzy = 1 - fuzzy
-        - node--
         - node.replace(Token::value(fuzzy))
-        - remove next two nodes
       - node++
     - node = tokens_list.begin
     - while (*node does not match Token::Operator.THEN)
@@ -180,6 +179,7 @@ fuzzy_values = {
       - if (*node).val matches Token::Operator.OR
         - get_result_of_two_nodes(node, max)
       - node++
+    - fuzzy_result = *(node - 1).val
     - while (node != tokens_list.end)
       - if (*node matches Token::Assignment)
         - assignment = (*node).val

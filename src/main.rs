@@ -1,9 +1,4 @@
-use std::{
-    collections::{HashMap, LinkedList},
-    f64::INFINITY,
-    fmt,
-    str::FromStr,
-};
+use std::{collections::HashMap, f64::INFINITY, fmt, str::FromStr};
 
 use multimap::MultiMap;
 #[macro_use]
@@ -20,6 +15,7 @@ struct Line {
     x_range: Range,
 }
 
+#[derive(Clone)]
 struct Assignment {
     not: bool,
     var: String,
@@ -32,24 +28,14 @@ enum Operator {
     OR,
     THEN,
 }
-struct LHS {
-    assignment_a: Assignment,
-    operator: Operator,
-    assignment_b: Assignment,
-}
-
+#[derive(Clone)]
 enum Token {
     Assignment(Assignment),
     Operator(Operator),
     Value(f64),
 }
 
-type Rule2 = Vec<Token>;
-
-struct Rule {
-    lhs: LHS,
-    rhs: Assignment,
-}
+type Rule = Vec<Token>;
 
 type VariableMap = HashMap<String, HashMap<String, Vec<Line>>>;
 
@@ -94,16 +80,12 @@ fn choose_name_from_map<T>(map: &HashMap<String, T>) -> String {
     variable_names[number as usize].to_owned()
 }
 
-fn add_rule2(
-    input_variables: &VariableMap,
-    output_variables: &VariableMap,
-    rules: &mut LinkedList<Rule2>,
-) {
+fn add_rule(input_variables: &VariableMap, output_variables: &VariableMap, rules: &mut Vec<Rule>) {
     if input_variables.len() == 0 || output_variables.len() == 0 {
         println!("Insufficient input and/or output variables to create a rule");
         return;
     }
-    let mut rule: Rule2 = Vec::new();
+    let mut rule: Rule = Vec::new();
     let mut in_lhs = true;
     let operators = vec![Operator::AND, Operator::OR, Operator::THEN];
     let mut i = 1_u32;
@@ -144,65 +126,7 @@ fn add_rule2(
         }
         i += 1;
     }
-    rules.push_back(rule);
-}
-
-fn add_rule(input_variables: &VariableMap, output_variables: &VariableMap, rules: &mut Vec<Rule>) {
-    if input_variables.len() == 0 || output_variables.len() == 0 {
-        println!("Insufficient input and/or output variables to create a rule");
-        return;
-    }
-    let mut rule_variables = Vec::new();
-    let mut rule_nots = Vec::new();
-    let mut rule_sets = Vec::new();
-    let mut operator = Operator::AND;
-    for i in 1..=3 {
-        let var_pool = if i == 3 {
-            &output_variables
-        } else {
-            &input_variables
-        };
-        let var_name = choose_name_from_map(var_pool);
-        rule_variables.push(var_name.clone());
-        println!("1. Is\n2. Is not");
-        let not_choice = input_in_range(1_u32, 2_u32);
-        rule_nots.push(not_choice == 2);
-        let set_name = choose_name_from_map(var_pool.get(&var_name).unwrap());
-        rule_sets.push(set_name);
-        if i == 1 {
-            println!("1. And\n2. Or");
-            let operator_choice = input_in_range(1_u32, 2_u32);
-            operator = if operator_choice == 1 {
-                Operator::AND
-            } else {
-                Operator::OR
-            };
-        }
-        if i == 2 {
-            println!("==>")
-        }
-    }
-    let rhs = Assignment {
-        not: rule_nots.pop().unwrap(),
-        var: rule_variables.pop().unwrap(),
-        set: rule_sets.pop().unwrap(),
-    };
-    let assignment_b = Assignment {
-        not: rule_nots.pop().unwrap(),
-        var: rule_variables.pop().unwrap(),
-        set: rule_sets.pop().unwrap(),
-    };
-    let assignment_a = Assignment {
-        not: rule_nots.pop().unwrap(),
-        var: rule_variables.pop().unwrap(),
-        set: rule_sets.pop().unwrap(),
-    };
-    let lhs = LHS {
-        assignment_a,
-        assignment_b,
-        operator,
-    };
-    rules.push(Rule { lhs, rhs });
+    rules.push(rule);
 }
 
 fn compute_y(line: &Line, value: f64) -> f64 {
@@ -269,6 +193,27 @@ fn add_variable(variables: &mut VariableMap) {
     }
 }
 
+fn get_value_from_token(token: &Token) -> f64 {
+    let val = match token {
+        Token::Value(v) => v.to_owned(),
+        _ => panic!("Parse error"),
+    };
+    val
+}
+
+fn compute_result_of_two_tokens(
+    tokens: &mut Rule,
+    mut mid_index: usize,
+    func: fn(f64, f64) -> f64,
+) {
+    mid_index += 1;
+    let val1 = get_value_from_token(&tokens[mid_index]);
+    mid_index -= 2;
+    let val2 = get_value_from_token(&tokens[mid_index]);
+    let res = func(val1, val2);
+    tokens.splice(mid_index..(mid_index + 3), vec![Token::Value(res)]);
+}
+
 fn calculate_crisp_output(
     input_variables: &VariableMap,
     output_variables: &VariableMap,
@@ -279,61 +224,75 @@ fn calculate_crisp_output(
         return;
     }
     let mut input_crisp_values: HashMap<String, f64> = HashMap::new();
-    let mut output_fuzzy_values = HashMap::new();
+    let mut output_fuzzy_values: HashMap<String, MultiMap<String, f64>> = HashMap::new();
     for rule in rules {
-        let var_a = &rule.lhs.assignment_a.var;
-        let var_b = &rule.lhs.assignment_b.var;
-        let a_crisp = if input_crisp_values.contains_key(var_a) {
-            input_crisp_values.get(var_a).unwrap().clone()
-        } else {
-            println!("{} crisp value", var_a);
-            get_input()
-        };
-        input_crisp_values.insert(var_a.clone(), a_crisp);
-
-        let b_crisp = if input_crisp_values.contains_key(var_b) {
-            input_crisp_values.get(var_b).unwrap().clone()
-        } else {
-            println!("{} crisp value", var_b);
-            get_input()
-        };
-        input_crisp_values.insert(var_b.clone(), b_crisp);
-
-        let mut a_fuzzy = calculate_fuzzy_value_for_variable(
-            input_variables,
-            var_a,
-            &rule.lhs.assignment_a.set,
-            a_crisp,
-        );
-        let mut b_fuzzy = calculate_fuzzy_value_for_variable(
-            input_variables,
-            var_b,
-            &rule.lhs.assignment_b.set,
-            b_crisp,
-        );
-        if rule.lhs.assignment_a.not {
-            a_fuzzy = 1.0 - a_fuzzy;
+        let mut tokens_list = rule.clone();
+        let mut idx = 0;
+        while !matches!(&tokens_list[idx], Token::Operator(Operator::THEN)) {
+            match &tokens_list[idx] {
+                Token::Assignment(assignment) => {
+                    let crisp = if input_crisp_values.contains_key(&assignment.var) {
+                        input_crisp_values.get(&assignment.var).unwrap().clone()
+                    } else {
+                        println!("{} crisp value", &assignment.var);
+                        get_input()
+                    };
+                    input_crisp_values.insert(assignment.var.clone(), crisp);
+                    let mut fuzzy = calculate_fuzzy_value_for_variable(
+                        &input_variables,
+                        &assignment.var,
+                        &assignment.set,
+                        crisp,
+                    );
+                    if assignment.not {
+                        fuzzy = 1.0 - fuzzy;
+                    }
+                    tokens_list.splice(idx..(idx + 1), vec![Token::Value(fuzzy)]);
+                }
+                _ => {}
+            }
+            idx += 1;
         }
-        if rule.lhs.assignment_b.not {
-            b_fuzzy = 1.0 - b_fuzzy;
+        idx = 0;
+        while !matches!(&tokens_list[idx], Token::Operator(Operator::THEN)) {
+            if matches!(&tokens_list[idx], Token::Operator(Operator::AND)) {
+                compute_result_of_two_tokens(&mut tokens_list, idx, f64::min);
+                idx -= 1;
+            }
+            idx += 1;
         }
-        let function = if matches!(rule.lhs.operator, Operator::AND) {
-            f64::min
-        } else {
-            f64::max
-        };
-        let mut c_fuzzy = function(a_fuzzy, b_fuzzy);
-        if rule.rhs.not {
-            c_fuzzy = 1.0 - c_fuzzy;
+        idx = 0;
+        while !matches!(&tokens_list[idx], Token::Operator(Operator::THEN)) {
+            if matches!(&tokens_list[idx], Token::Operator(Operator::OR)) {
+                compute_result_of_two_tokens(&mut tokens_list, idx, f64::max);
+                idx -= 1;
+            }
+            idx += 1;
         }
-        if !output_fuzzy_values.contains_key(&rule.rhs.var) {
-            output_fuzzy_values.insert(rule.rhs.var.clone(), MultiMap::new());
+        let result_token = &tokens_list[idx - 1];
+        let fuzzy_result = get_value_from_token(result_token);
+        while idx != tokens_list.len() - 1 {
+            match &tokens_list[idx] {
+                Token::Assignment(assignment) => {
+                    let mut assignment_result = fuzzy_result;
+                    if assignment.not {
+                        assignment_result = 1.0 - assignment_result;
+                    }
+                    if !output_fuzzy_values.contains_key(&assignment.var) {
+                        output_fuzzy_values.insert(assignment.var.clone(), MultiMap::new());
+                        output_fuzzy_values
+                            .get_mut(&assignment.var)
+                            .unwrap()
+                            .insert(assignment.set.clone(), assignment_result);
+                    }
+                }
+                Token::Operator(_) => todo!(),
+                Token::Value(_) => todo!(),
+            }
+            idx += 1;
         }
-        output_fuzzy_values
-            .get_mut(&rule.rhs.var)
-            .unwrap()
-            .insert(rule.rhs.set.clone(), c_fuzzy);
     }
+
     for (var_name, set) in &output_fuzzy_values {
         let mut numerator = 0_f64;
         let mut denominator = 0_f64;
