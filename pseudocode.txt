@@ -5,6 +5,14 @@
 
 - Structs: line, range, rule, assignment
 
+Token = {
+  Assignment(Assignment)
+  Operator(Operator)
+  Value(f64)
+}
+
+Rule = Token[]
+
 Range = {
   begin: float,
   end: float
@@ -20,15 +28,6 @@ Assignment = {
   not: bool,
   var: string
   set: string
-}
-
-Rule = {
-  lhs: {
-    assignment_a: Assignment,
-    operator: 'AND' | 'OR',
-    assignment_b: Assignment
-  },
-  rhs: Assignment
 }
 
 rules = Rule[]
@@ -59,13 +58,45 @@ fuzzy_values = {
   - number = input() - 1
   - return variable_names[number]
 
+# input var if in lhs - output var if in rhs
+# Is/is not
+# set
+# And/or/then if in lhs - x/, if in rhs
+# rule is [assignment, op, assignment, op, assignment, ..., op(then), assignment, assignment, ....]
+
 - add_rule(input_variables, output_variables, rules)
   - if input_variables.size() == 0 || output_variables.size() == 0
     - print insufficient input and/or output variables to create a rule
-  - rule_variables = []
-  - rule_nots = []
-  - rule_sets = []
-  - operator = ""
+  - rule = []
+  - i = 1
+  - in_lhs = true
+  - operators = [and, or, then]
+  - while true
+    - turn = i % 2
+    - if turn == 1
+      - var_pool = in_lhs ? input_variables : output_variables
+      - var_name = choose_name_from_map(var_pool)
+      - print("1. is\n2. is not")
+      - not_choice = input in range 1, 2
+      - not = not_choice == 2
+      - set_name = choose_name_from_map(var_pool[var_name])
+      - rule.append(Token::Assignment({not, var_name, set_name}))
+    - else if turn == 0
+      - if in lhs
+        - print("1. and\n2. or\n3. then")
+        - operator_choice = input() in range 1, 3
+        - operator = operators[operator_choice - 1]
+        - rule.append(Token::Operator(operator))
+        - if operator == then
+          - in_lhs = false
+      - else
+        - print("1. more\n 2. done")
+        - operator_choice = input() in range 1, 2
+        - if operator_choice == 2
+          - break
+    - i++
+  - rules.append(rule)
+
   - for i:1..=3
     - var_pool = i == 3 ? output_variables : input_variables
     - var_name = choose_name_from_map(var_pool)
