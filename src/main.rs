@@ -272,8 +272,7 @@ fn calculate_crisp_output(
             }
             idx += 1;
         }
-        let result_token = &tokens_list[idx - 1];
-        let fuzzy_result = get_value_from_token(result_token);
+        let fuzzy_result = get_value_from_token(&tokens_list[idx - 1]);
         while idx != tokens_list.len() {
             match &tokens_list[idx] {
                 Token::Assignment(assignment) => {
