@@ -246,8 +246,9 @@ fn calculate_crisp_output(
     for rule in rules {
         let mut tokens_list = rule.clone();
         let mut idx = 0;
-        while !matches!(&tokens_list[idx], Token::Operator(Operator::THEN)) {
+        loop {
             match &tokens_list[idx] {
+                Token::Operator(Operator::THEN) => break,
                 Token::Assignment(assignment) => {
                     let crisp = if input_crisp_values.contains_key(&assignment.var) {
                         input_crisp_values.get(&assignment.var).unwrap().clone()
