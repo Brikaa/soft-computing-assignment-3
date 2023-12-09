@@ -141,14 +141,19 @@ fuzzy_values = {
 # for each var name in output fuzzy values
   # for each set name in output_fuzzy_values[var_name], do the crisp value stuff
 
-- get_result_of_two_nodes(mid_node, fn)
-  - node++
-  - val1 = *node.val
-  - node -= 2
-  - val2 = *node.val
-  - res = fn(val1, val2)
-  - node.replace(Token::value(res))
-  - remove next two nodes
+- do_operation_on_tokens(operator_token, operation, tokens)
+  - new_tokens = []
+  - idx = 0
+  - while (tokens[idx] != Operator.THEN)
+    - if tokens[idx] matches operator(operator_token)
+      - new_tokens.push(operation(tokens[idx - 1], tokens[idx + 1]))
+    - else if tokens[idx] matches operator(_)
+      - new_tokens.push(tokens[idx - 1])
+      - new_tokens.push(tokens[idx])
+      - new_tokens.push(tokens[idx + 1])
+    - idx++
+  - copy rest of tokens to new_tokens
+  - return new_tokens
 
 - calculate_crisp_output(input_variables, output_variables, rules)
   - if rules.size() == 0
@@ -157,38 +162,31 @@ fuzzy_values = {
   - output_fuzzy_values = {} (contains multimap)
   - for rule in rules
     - tokens_list = rule.clone()
-    - node = tokens_list.begin
-    - while (*node != Token::Operator.THEN)
-      - if (*node).val matches Token::Assignment
-        - assignment = (*node).val
+    - idx = 0
+    - while (tokens_list[idx] != Operator.THEN)
+      - if tokens_list[idx] matches Token::Assignment
+        - assignment = tokens_list[idx]
         - crisp = input_crisp_values.has(assignment.var)
           ? input_crisp_values[assignment.var]
           : input('{assignment.var} crisp value')
         - input_crisp_values[assignment.var] = crisp
         - fuzzy = calculate_fuzzy_value_for_variable(input_variables, assignment.var, assignment.set, crisp)
         - if (assignment.not) fuzzy = 1 - fuzzy
-        - node.replace(Token::value(fuzzy))
-      - node++
-    - node = tokens_list.begin
-    - while (*node does not match Token::Operator.THEN)
-      - if (*node).val matches Token::Operator.AND
-        - get_result_of_two_nodes(node, min)
-      - node++
-    - node = tokens_list.begin
-    - while (*node does not match Token::Operator.THEN)
-      - if (*node).val matches Token::Operator.OR
-        - get_result_of_two_nodes(node, max)
-      - node++
-    - fuzzy_result = *(node - 1).val
-    - while (node != tokens_list.end)
-      - if (*node matches Token::Assignment)
-        - assignment = (*node).val
+        - tokens_list[idx] = Token::value(fuzzy)
+      - idx++
+    - tokens_anded = do_operation_on_tokens(Operator::AND, min, tokens_list)
+    - tokens_ored = do_operation_on_tokens(Operator::OR, max, tokens_list)
+    - fuzzy_result = tokens_ored[0]
+    - idx = 0
+    - while (idx < tokens_ored.size())
+      - if (tokens_ored[idx] matches Token::Assignment)
+        - assignment = tokens_ored[idx]
         - assignment_result = fuzzy_result
         - if (assignment.not) assignment_result = 1 - assignment_result
         - if (!output_fuzzy_values.has(assignment.var))
           - output_fuzzy_values.set(assignment.var, {})
         - output_fuzzy_values[assignment.var].set(assignment.set, assignment_result)
-      - node++
+      - idx++
   - for (var_name, set) in output_fuzzy_values
     - numerator = 0
     - denominator = 0

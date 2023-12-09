@@ -1,4 +1,4 @@
-use std::{collections::HashMap, f64::INFINITY, fmt, str::FromStr};
+use std::{collections::HashMap, f64::INFINITY, fmt, mem::discriminant, str::FromStr};
 
 use multimap::MultiMap;
 #[macro_use]
@@ -204,17 +204,32 @@ fn get_value_from_token(token: &Token) -> f64 {
     val
 }
 
-fn compute_result_of_two_tokens(
-    tokens: &mut Rule,
-    mut mid_index: usize,
-    func: fn(f64, f64) -> f64,
-) {
-    mid_index += 1;
-    let val1 = get_value_from_token(&tokens[mid_index]);
-    mid_index -= 2;
-    let val2 = get_value_from_token(&tokens[mid_index]);
-    let res = func(val1, val2);
-    tokens.splice(mid_index..(mid_index + 3), vec![Token::Value(res)]);
+fn do_operations_on_tokens(
+    operator: Operator,
+    operation: fn(f64, f64) -> f64,
+    tokens: Vec<Token>,
+) -> Vec<Token> {
+    let mut new_tokens = Vec::new();
+    let mut idx = 0;
+    loop {
+        match &tokens[idx] {
+            Token::Operator(Operator::THEN) => break,
+            Token::Operator(op) if discriminant(op) == discriminant(&operator) => {
+                let a = get_value_from_token(&tokens[idx - 1]);
+                let b = get_value_from_token(&tokens[idx + 1]);
+                new_tokens.pop().unwrap();
+                new_tokens.push(Token::Value(operation(a, b)));
+                idx += 1;
+            }
+            token => new_tokens.push(token.clone()),
+        }
+        idx += 1;
+    }
+    while idx != tokens.len() {
+        new_tokens.push(tokens[idx].clone());
+        idx += 1;
+    }
+    new_tokens
 }
 
 fn calculate_crisp_output(
@@ -250,31 +265,18 @@ fn calculate_crisp_output(
                     if assignment.not {
                         fuzzy = 1.0 - fuzzy;
                     }
-                    tokens_list.splice(idx..(idx + 1), vec![Token::Value(fuzzy)]);
+                    tokens_list[idx] = Token::Value(fuzzy);
                 }
                 _ => {}
             }
             idx += 1;
         }
+        let tokens_anded = do_operations_on_tokens(Operator::AND, f64::min, tokens_list);
+        let tokens_ored = do_operations_on_tokens(Operator::OR, f64::max, tokens_anded);
+        let fuzzy_result = get_value_from_token(&tokens_ored[0]);
         idx = 0;
-        while !matches!(&tokens_list[idx], Token::Operator(Operator::THEN)) {
-            if matches!(&tokens_list[idx], Token::Operator(Operator::AND)) {
-                compute_result_of_two_tokens(&mut tokens_list, idx, f64::min);
-                idx -= 1;
-            }
-            idx += 1;
-        }
-        idx = 0;
-        while !matches!(&tokens_list[idx], Token::Operator(Operator::THEN)) {
-            if matches!(&tokens_list[idx], Token::Operator(Operator::OR)) {
-                compute_result_of_two_tokens(&mut tokens_list, idx, f64::max);
-                idx -= 1;
-            }
-            idx += 1;
-        }
-        let fuzzy_result = get_value_from_token(&tokens_list[idx - 1]);
-        while idx != tokens_list.len() {
-            match &tokens_list[idx] {
+        while idx != tokens_ored.len() {
+            match &tokens_ored[idx] {
                 Token::Assignment(assignment) => {
                     let mut assignment_result = fuzzy_result;
                     if assignment.not {
@@ -328,7 +330,7 @@ fn calculate_crisp_output(
                 }
             }
         }
-        println!("{}: {} ({})", var_name, crisp_value, set_name);
+        println!("{}: {:.4} ({})", var_name, crisp_value, set_name);
     }
 }
 
